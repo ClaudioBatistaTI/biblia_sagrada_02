@@ -10,6 +10,7 @@ import SearchModal from './components/SearchModal';
 import SettingsModal from './components/SettingsModal';
 import VerseOfTheDay from './components/VerseOfTheDay';
 import ReadingPlanModal from './components/ReadingPlanModal';
+import ChatModal from './components/ChatModal';
 import Toast from './components/Toast';
 import LandingPage from './components/LandingPage';
 
@@ -44,6 +45,7 @@ function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPlansOpen, setIsPlansOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [showVOD, setShowVOD] = useState(true);
   
   // Toast State
@@ -506,11 +508,11 @@ function App() {
             
             {/* Mobile Actions */}
             <div className="flex items-center gap-1 md:hidden">
+                 <button onClick={() => setIsChatOpen(true)} className="p-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 rounded-lg">
+                    <Icons.MessageCircle size={20} />
+                 </button>
                  <button onClick={toggleSpeech} className={`p-2 rounded-full ${isSpeaking ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`}>
                     {isSpeaking ? <Icons.Pause size={20} /> : <Icons.Play size={20} />}
-                 </button>
-                 <button onClick={handleShareChapter} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
-                    <Icons.Share2 size={20} />
                  </button>
                  <button onClick={() => setIsSearchOpen(true)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
                     <Icons.Search size={20} />
@@ -578,6 +580,9 @@ function App() {
 
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
+            <button onClick={() => setIsChatOpen(true)} className="hidden md:block p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg" title="Chat com Mentor">
+                <Icons.MessageCircle size={20} />
+            </button>
             <button onClick={handleShareChapter} className="hidden md:block p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" title="Compartilhar Capítulo">
               <Icons.Share2 size={20} />
             </button>
@@ -782,6 +787,7 @@ function App() {
       <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onNavigate={handleSearchResult} />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} currentTheme={theme} onThemeChange={setTheme} currentFontSize={fontSize} onFontSizeChange={setFontSize} onExportData={exportData} onImportData={importData} />
       <ReadingPlanModal isOpen={isPlansOpen} onClose={() => setIsPlansOpen(false)} plans={READING_PLANS} completedDays={completedPlanDays} onToggleDay={togglePlanDay} onNavigate={(book, chapter) => { setCurrentBook(book); setCurrentChapter(chapter); }} />
+      <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 }

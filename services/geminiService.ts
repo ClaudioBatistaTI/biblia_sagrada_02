@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
 
 export const getVerseInsight = async (verseText: string, context: string): Promise<string> => {
   if (!process.env.API_KEY) {
@@ -90,4 +90,28 @@ export const searchBibleReferences = async (
     console.error("Gemini Search Error:", error);
     return [];
   }
+};
+
+export const createBibleChat = (): Chat | null => {
+    if (!process.env.API_KEY) return null;
+
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    return ai.chats.create({
+        model: 'gemini-2.5-flash',
+        config: {
+            systemInstruction: `
+                Você é um mentor bíblico amigável, sábio e encorajador.
+                Seu objetivo é ajudar o usuário a entender a Bíblia, aplicar seus ensinamentos na vida diária e tirar dúvidas teológicas.
+                
+                Diretrizes:
+                1. Use sempre a Bíblia como sua fonte principal de autoridade.
+                2. Seja respeitoso com diferentes interpretações cristãs, mas foque no consenso geral ortodoxo.
+                3. Use uma linguagem clara, acessível e empática.
+                4. Se o usuário estiver passando por dificuldades emocionais, ofereça versículos de consolo e esperança.
+                5. Mantenha as respostas concisas, mas completas.
+                6. Responda sempre em Português do Brasil.
+            `
+        }
+    });
 };

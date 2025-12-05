@@ -30,7 +30,11 @@ import {
   Columns,
   Calendar,
   CheckCircle,
-  Palette
+  Palette,
+  MessageCircle,
+  Send,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 export const Icons = {
@@ -64,7 +68,11 @@ export const Icons = {
   Columns,
   Calendar,
   CheckCircle,
-  Palette
+  Palette,
+  MessageCircle,
+  Send,
+  Lock,
+  Unlock
 };
 
 export default Icons;

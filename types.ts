@@ -75,6 +75,13 @@ export interface ReadingPlan {
   }[];
 }
 
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  timestamp: number;
+}
+
 export enum ViewState {
   READING = 'READING',
   SELECT_BOOK = 'SELECT_BOOK',
