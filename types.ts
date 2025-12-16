@@ -47,6 +47,7 @@ export interface HistoryItem {
   bookName: string;
   chapter: number;
   timestamp: number;
+  previewText?: string;
 }
 
 export type Theme = 'light' | 'dark' | 'sepia' | 'system';

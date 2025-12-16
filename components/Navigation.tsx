@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { OLD_TESTAMENT, NEW_TESTAMENT, ALL_BOOKS } from '../constants';
-import { Book, HistoryItem } from '../types';
+import { Book, HistoryItem, Note } from '../types';
 import Icons from './Icon';
 
 interface NavigationProps {
   currentBook: Book;
   currentChapter: number;
   history: HistoryItem[];
+  notes?: Record<string, Note>;
   onSelect: (book: Book, chapter: number, verse?: number) => void;
   onClose: () => void;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ currentBook, currentChapter, history, onSelect, onClose }) => {
+const Navigation: React.FC<NavigationProps> = ({ currentBook, currentChapter, history, notes = {}, onSelect, onClose }) => {
   const [activeTab, setActiveTab] = useState<'books' | 'history'>('books');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,28 +159,47 @@ const Navigation: React.FC<NavigationProps> = ({ currentBook, currentChapter, hi
                  <p className="text-sm">Seu histórico de leitura aparecerá aqui.</p>
                </div>
              ) : (
-               history.map((item, idx) => (
-                 <button
-                   key={`${item.bookId}-${item.chapter}-${idx}`}
-                   onClick={() => handleHistoryClick(item)}
-                   className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between group transition-colors"
-                 >
-                   <div className="flex items-center gap-3">
-                     <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-500 rounded-full">
-                       <Icons.Book size={18} />
-                     </div>
-                     <div>
-                       <div className="font-semibold text-gray-800 dark:text-gray-200">
-                         {item.bookName} {item.chapter}
-                       </div>
-                       <div className="text-xs text-gray-400">
-                         {formatTime(item.timestamp)}
-                       </div>
-                     </div>
-                   </div>
-                   <Icons.ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500" />
-                 </button>
-               ))
+               history.map((item, idx) => {
+                 // Check for notes in this chapter
+                 const chapterNotes = (Object.values(notes) as Note[]).filter(n => n.reference.startsWith(item.bookName + ' ' + item.chapter + ':'));
+                 const hasNote = chapterNotes.length > 0;
+                 const notePreview = hasNote ? chapterNotes[0].text : '';
+
+                 return (
+                    <button
+                        key={`${item.bookId}-${item.chapter}-${idx}`}
+                        onClick={() => handleHistoryClick(item)}
+                        className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between group transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+                    >
+                    <div className="flex items-start gap-3 w-full overflow-hidden">
+                        <div className={`p-2 mt-1 rounded-full shrink-0 ${hasNote ? 'bg-yellow-50 text-yellow-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-500'}`}>
+                            {hasNote ? <Icons.FileText size={18} /> : <Icons.Book size={18} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex justify-between items-baseline">
+                                <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                    {item.bookName} {item.chapter}
+                                </span>
+                                <span className="text-xs text-gray-400 shrink-0 ml-2">
+                                    {formatTime(item.timestamp)}
+                                </span>
+                            </div>
+                            
+                            {hasNote ? (
+                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-gray-400 italic truncate">
+                                    <span className="font-bold text-yellow-600 not-italic">Nota:</span>
+                                    {notePreview}
+                                </div>
+                            ) : item.previewText ? (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate font-serif opacity-80">
+                                    "{item.previewText}"
+                                </p>
+                            ) : null}
+                        </div>
+                    </div>
+                    </button>
+                 );
+               })
              )}
            </div>
         )}

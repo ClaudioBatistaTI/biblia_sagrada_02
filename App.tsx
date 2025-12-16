@@ -13,6 +13,7 @@ import ReadingPlanModal from './components/ReadingPlanModal';
 import ChatModal from './components/ChatModal';
 import Toast from './components/Toast';
 import LandingPage from './components/LandingPage';
+import Tooltip from './components/Tooltip';
 
 // Initial State
 const INITIAL_BOOK = ALL_BOOKS[0]; // Genesis
@@ -144,6 +145,25 @@ function App() {
       return [newItem, ...filtered].slice(0, 50); 
     });
   }, [currentBook.id, currentChapter]); 
+
+  // Update History with Verse Preview when verses are loaded
+  useEffect(() => {
+    if (verses.length > 0 && history.length > 0) {
+      const latestHistory = history[0];
+      // Check if the latest history matches the current view and doesn't have a preview yet
+      if (latestHistory.bookId === currentBook.id && 
+          latestHistory.chapter === currentChapter && 
+          !latestHistory.previewText) {
+          
+          setHistory(prev => {
+             const newHistory = [...prev];
+             // Take the first verse as preview
+             newHistory[0] = { ...newHistory[0], previewText: verses[0].text.substring(0, 80) + '...' };
+             return newHistory;
+          });
+      }
+    }
+  }, [verses, currentBook.id, currentChapter]); // Keep dependency lean but functional
 
   // Stop audio on chapter change
   useEffect(() => {
@@ -488,6 +508,7 @@ function App() {
           currentBook={currentBook}
           currentChapter={currentChapter}
           history={history}
+          notes={notes}
           onSelect={(book, chapter, verse) => {
             setCurrentBook(book);
             setCurrentChapter(chapter);
@@ -736,12 +757,14 @@ function App() {
                       <div id={`toolbar-${verse.verse}`} className="flex flex-wrap items-center gap-2 mt-4 ml-12 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         {/* Highlight Button with Picker Popover */}
                         <div className="relative">
-                            <button 
-                                onClick={() => setActiveHighlightId(activeHighlightId === ref ? null : ref)}
-                                className={`p-2 rounded-full transition-colors ${highlightColor ? 'text-yellow-600 bg-yellow-100' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-                            >
-                                <Icons.Highlighter size={18} />
-                            </button>
+                            <Tooltip text="Destacar">
+                              <button 
+                                  onClick={() => setActiveHighlightId(activeHighlightId === ref ? null : ref)}
+                                  className={`p-2 rounded-full transition-colors ${highlightColor ? 'text-yellow-600 bg-yellow-100' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                              >
+                                  <Icons.Highlighter size={18} />
+                              </button>
+                            </Tooltip>
                             {activeHighlightId === ref && (
                                 <div className="absolute bottom-full left-0 mb-2 p-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 flex gap-2 z-10 animate-in fade-in zoom-in duration-200">
                                     <button onClick={() => setHighlight(ref, null)} className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 hover:bg-gray-100"><Icons.X size={12}/></button>
@@ -755,21 +778,35 @@ function App() {
                             )}
                         </div>
 
-                        <button onClick={() => toggleFavorite(ref)} className={`p-2 rounded-full ${isFav ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                          <Icons.Heart size={18} fill={isFav ? "currentColor" : "none"} />
-                        </button>
-                        <button onClick={() => setActiveNoteRef(ref)} className={`p-2 rounded-full ${hasNote ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
-                          <Icons.FileText size={18} />
-                        </button>
-                        <button onClick={() => setActiveGeminiData({ ref, text: verse.text })} className="p-2 rounded-full text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
-                          <Icons.Sparkles size={18} />
-                        </button>
-                        <button onClick={() => handleCopy(verse.text, ref)} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
-                          <Icons.Copy size={18} />
-                        </button>
-                        <button onClick={() => handleShare(verse.text, ref)} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
-                          <Icons.Share2 size={18} />
-                        </button>
+                        <Tooltip text={isFav ? "Remover Favorito" : "Favoritar"}>
+                          <button onClick={() => toggleFavorite(ref)} className={`p-2 rounded-full ${isFav ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                            <Icons.Heart size={18} fill={isFav ? "currentColor" : "none"} />
+                          </button>
+                        </Tooltip>
+                        
+                        <Tooltip text={hasNote ? "Editar Nota" : "Adicionar Nota"}>
+                          <button onClick={() => setActiveNoteRef(ref)} className={`p-2 rounded-full ${hasNote ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                            <Icons.FileText size={18} />
+                          </button>
+                        </Tooltip>
+
+                        <Tooltip text="Explicação com IA">
+                          <button onClick={() => setActiveGeminiData({ ref, text: verse.text })} className="p-2 rounded-full text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30">
+                            <Icons.Sparkles size={18} />
+                          </button>
+                        </Tooltip>
+                        
+                        <Tooltip text="Copiar">
+                          <button onClick={() => handleCopy(verse.text, ref)} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+                            <Icons.Copy size={18} />
+                          </button>
+                        </Tooltip>
+                        
+                        <Tooltip text="Compartilhar">
+                          <button onClick={() => handleShare(verse.text, ref)} className="p-2 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700">
+                            <Icons.Share2 size={18} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   );
