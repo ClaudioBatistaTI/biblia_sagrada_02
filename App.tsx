@@ -181,27 +181,39 @@ function App() {
 
   useEffect(() => {
     loadContent();
-    if (targetVerse === null && !showLanding) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    // Logic to scroll to top moved to the verses effect to ensure content is loaded
   }, [loadContent, showLanding]); 
 
-  // Scroll to target verse
+  // Handle Scroll to Target or Top
   useEffect(() => {
-    if (!isLoading && verses.length > 0 && targetVerse !== null) {
-      setTimeout(() => {
-        const element = document.getElementById(`verse-${targetVerse}`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          element.classList.add('ring-2', 'ring-blue-500', 'shadow-lg', 'scale-[1.01]');
-          setTimeout(() => {
-            element.classList.remove('ring-2', 'ring-blue-500', 'shadow-lg', 'scale-[1.01]');
-          }, 2500);
-          setTargetVerse(null);
+    if (!isLoading && verses.length > 0) {
+      const container = document.getElementById('reader-container');
+      
+      if (targetVerse !== null) {
+        // Delay slightly to ensure DOM render is complete
+        setTimeout(() => {
+          const element = document.getElementById(`verse-${targetVerse}`);
+          if (element) {
+            // Smoothly scroll to center the verse
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Visual highlight effect
+            element.classList.add('ring-2', 'ring-blue-500', 'shadow-lg', 'bg-blue-50', 'dark:bg-blue-900/20', 'scale-[1.01]');
+            setTimeout(() => {
+              element.classList.remove('ring-2', 'ring-blue-500', 'shadow-lg', 'bg-blue-50', 'dark:bg-blue-900/20', 'scale-[1.01]');
+            }, 2500);
+            
+            setTargetVerse(null);
+          }
+        }, 150);
+      } else {
+        // If no target verse, and we are not on landing page, scroll to top of CONTAINER
+        if (container && !showLanding) {
+          container.scrollTo({ top: 0, behavior: 'smooth' });
         }
-      }, 100);
+      }
     }
-  }, [verses, isLoading, targetVerse]);
+  }, [verses, isLoading, targetVerse, showLanding]);
 
   // --- Handlers ---
 
@@ -219,7 +231,7 @@ function App() {
         setCurrentChapter(1);
       }
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll handling is done in the useEffect dependent on 'verses'
   }, [currentChapter, currentBook]);
 
   const handlePrevChapter = useCallback(() => {
@@ -233,7 +245,7 @@ function App() {
         setCurrentChapter(prevBook.chapters);
       }
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll handling is done in the useEffect dependent on 'verses'
   }, [currentChapter, currentBook]);
 
   // Audio Handler
