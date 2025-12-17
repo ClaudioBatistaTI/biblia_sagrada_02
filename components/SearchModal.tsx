@@ -10,11 +10,14 @@ interface SearchModalProps {
   onNavigate: (result: SearchResult) => void;
 }
 
+const ITEMS_PER_PAGE = 50;
+
 const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(ITEMS_PER_PAGE);
   
   // Filters
   const [testamentFilter, setTestamentFilter] = useState<'ALL' | 'OT' | 'NT'>('ALL');
@@ -45,6 +48,10 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
     });
   }, [results, bookFilter, testamentFilter]);
 
+  const displayedResults = useMemo(() => {
+    return filteredResults.slice(0, displayLimit);
+  }, [filteredResults, displayLimit]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -52,6 +59,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
     setLoading(true);
     setHasSearched(true);
     setResults([]);
+    setDisplayLimit(ITEMS_PER_PAGE);
 
     try {
       const data = await searchVerses(query);
@@ -61,6 +69,10 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLoadMore = () => {
+    setDisplayLimit(prev => prev + ITEMS_PER_PAGE);
   };
 
   if (!isOpen) return null;
@@ -124,13 +136,14 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
                <span className="text-sm animate-pulse">Buscando na concordância...</span>
             </div>
           ) : filteredResults.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-2 pb-4">
               <div className="px-2 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex justify-between items-center">
                 <span>{filteredResults.length} ocorrências encontradas</span>
               </div>
-              {filteredResults.map((res, idx) => (
+              
+              {displayedResults.map((res, idx) => (
                 <button
-                  key={idx}
+                  key={`${res.book}-${res.chapter}-${res.verse}-${idx}`}
                   onClick={() => {
                     onNavigate(res);
                     onClose();
@@ -143,11 +156,20 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
                     </span>
                     <Icons.ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500" />
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 font-serif">
-                    "{res.text}"
-                  </p>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 font-serif" dangerouslySetInnerHTML={{ 
+                      __html: res.text.replace(new RegExp(`(${query})`, 'gi'), '<span class="bg-yellow-200 dark:bg-yellow-900/50 text-gray-900 dark:text-gray-100 font-bold px-1 rounded">$1</span>') 
+                  }} />
                 </button>
               ))}
+
+              {filteredResults.length > displayLimit && (
+                <button 
+                    onClick={handleLoadMore}
+                    className="w-full py-3 text-center text-blue-600 dark:text-blue-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors text-sm"
+                >
+                    Carregar mais resultados ({filteredResults.length - displayLimit} restantes)
+                </button>
+              )}
             </div>
           ) : hasSearched ? (
             <div className="text-center py-10 text-gray-500 flex flex-col items-center">

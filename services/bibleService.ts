@@ -2,8 +2,6 @@ import { ChapterResponse, SearchResult } from '../types';
 import { ALL_BOOKS } from '../constants';
 
 const BASE_URL = 'https://bible-api.com';
-// Using Bolls.life API for search (GET request, supports CORS, reliable)
-// 'AA' code corresponds to Almeida Atualizada
 const SEARCH_API_URL = 'https://bolls.life/find/AA/';
 
 export const fetchChapter = async (
@@ -12,10 +10,6 @@ export const fetchChapter = async (
   version: string
 ): Promise<ChapterResponse> => {
   try {
-    // API Quirk handling:
-    // 1. For Almeida version, 'Revelation' often fails. Using 'Apocalipse' works reliably.
-    // 2. Spaces in book names (e.g. '1 John') must be replaced with '+' for this API.
-    
     let queryBook = bookId;
     
     if (version === 'almeida' && bookId === 'Revelation') {
@@ -49,21 +43,30 @@ export const searchVerses = async (query: string): Promise<SearchResult[]> => {
     const response = await fetch(url);
 
     if (!response.ok) {
+       console.error("Search API returned error:", response.status);
        return [];
     }
 
     const data = await response.json();
     
-    // The API returns an array like: [{ "book": 1, "chapter": 1, "verse": 1, "text": "..." }, ...]
-    // We must map the numeric 'book' ID (1-66) to our Portuguese book names in ALL_BOOKS.
-    // ALL_BOOKS array is ordered Genesis (index 0) to Revelation (index 65).
+    if (!Array.isArray(data)) {
+        console.error("Unexpected search response format:", data);
+        return [];
+    }
     
+    // Map API results to internal structure
     return data.map((v: any) => {
-        const bookIndex = v.book - 1; // API uses 1-based index
-        const bookInfo = ALL_BOOKS[bookIndex];
+        // API book ID is 1-based (1 = Genesis)
+        // Ensure bookIndex is within bounds of ALL_BOOKS array
+        const bookIndex = (v.book || 0) - 1;
         
+        let bookName = 'Desconhecido';
+        if (bookIndex >= 0 && bookIndex < ALL_BOOKS.length) {
+            bookName = ALL_BOOKS[bookIndex].name;
+        }
+
         return {
-            book: bookInfo ? bookInfo.name : 'Desconhecido',
+            book: bookName,
             chapter: v.chapter,
             verse: v.verse,
             text: v.text
