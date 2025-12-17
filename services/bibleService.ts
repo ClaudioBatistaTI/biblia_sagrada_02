@@ -1,7 +1,10 @@
 import { ChapterResponse, SearchResult } from '../types';
+import { ALL_BOOKS } from '../constants';
 
 const BASE_URL = 'https://bible-api.com';
-const SEARCH_API_URL = 'https://www.abibliadigital.com.br/api/verses/search';
+// Using Bolls.life API for search (GET request, supports CORS, reliable)
+// 'AA' code corresponds to Almeida Atualizada
+const SEARCH_API_URL = 'https://bolls.life/find/AA/';
 
 export const fetchChapter = async (
   bookId: string,
@@ -38,13 +41,12 @@ export const fetchChapter = async (
 
 export const searchVerses = async (query: string): Promise<SearchResult[]> => {
   try {
-    // Using ABibliaDigital for search as it supports specific keyword search better
-    // 'acf' is Almeida Corrigida Fiel, closest to standard Almeida
-    const response = await fetch(SEARCH_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ version: 'acf', search: query }) 
-    });
+    if (!query || query.length < 2) return [];
+
+    // Bolls.life API: GET /find/{translation}/?search={query}&match_case=false
+    const url = `${SEARCH_API_URL}?search=${encodeURIComponent(query)}&match_case=false`;
+    
+    const response = await fetch(url);
 
     if (!response.ok) {
        return [];
@@ -52,14 +54,21 @@ export const searchVerses = async (query: string): Promise<SearchResult[]> => {
 
     const data = await response.json();
     
-    if (!data || !data.verses) return [];
-
-    return data.verses.map((v: any) => ({
-        book: v.book.name,
-        chapter: v.chapter,
-        verse: v.number,
-        text: v.text
-    }));
+    // The API returns an array like: [{ "book": 1, "chapter": 1, "verse": 1, "text": "..." }, ...]
+    // We must map the numeric 'book' ID (1-66) to our Portuguese book names in ALL_BOOKS.
+    // ALL_BOOKS array is ordered Genesis (index 0) to Revelation (index 65).
+    
+    return data.map((v: any) => {
+        const bookIndex = v.book - 1; // API uses 1-based index
+        const bookInfo = ALL_BOOKS[bookIndex];
+        
+        return {
+            book: bookInfo ? bookInfo.name : 'Desconhecido',
+            chapter: v.chapter,
+            verse: v.verse,
+            text: v.text
+        };
+    });
   } catch (error) {
     console.error("Search API Error:", error);
     return [];

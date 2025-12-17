@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { OLD_TESTAMENT, NEW_TESTAMENT, ALL_BOOKS } from '../constants';
 import { Book, HistoryItem, Note } from '../types';
 import Icons from './Icon';
@@ -20,6 +20,14 @@ const Navigation: React.FC<NavigationProps> = ({ currentBook, currentChapter, hi
 
   const filteredOld = OLD_TESTAMENT.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredNew = NEW_TESTAMENT.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  // Generate Alphabet for Index
+  const alphabet = useMemo(() => {
+    if (activeTab !== 'books' || selectedBook) return [];
+    const books = [...filteredOld, ...filteredNew];
+    const letters = new Set(books.map(b => b.name.charAt(0).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
+    return Array.from(letters).sort();
+  }, [activeTab, selectedBook, filteredOld, filteredNew]);
 
   const handleBookClick = (book: Book) => {
     setSelectedBook(book);
@@ -44,10 +52,21 @@ const Navigation: React.FC<NavigationProps> = ({ currentBook, currentChapter, hi
     }
   };
 
+  const handleAlphaClick = (letter: string) => {
+    const targetBook = [...filteredOld, ...filteredNew].find(b => 
+        b.name.charAt(0).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") === letter
+    );
+    
+    if (targetBook) {
+        const el = document.getElementById(`book-btn-${targetBook.id}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+  };
+
   const handleQuickNavSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple regex for "Book Chapter:Verse" or "Book Chapter"
-    // Handles cases like "1 João 3:16" or "Gênesis 1"
     const regex = /([1-3]?\s?[a-zA-ZÀ-ÿ]+)\s+(\d+)(?::(\d+))?/;
     const match = quickNav.match(regex);
 
@@ -88,7 +107,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentBook, currentChapter, hi
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100">
       
       {/* Search Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-10">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 sticky top-0 z-10 shrink-0">
         
         {/* Quick Nav Input */}
         <form onSubmit={handleQuickNavSubmit} className="mb-4 relative">
@@ -148,130 +167,151 @@ const Navigation: React.FC<NavigationProps> = ({ currentBook, currentChapter, hi
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* Content Container with Relative Positioning for Index */}
+      <div className="flex-1 relative overflow-hidden">
         
-        {activeTab === 'history' && (
-           <div className="space-y-3 animate-in fade-in slide-in-from-left-4 duration-300">
-             {history.length === 0 ? (
-               <div className="text-center py-10 text-gray-400">
-                 <Icons.Clock size={40} className="mx-auto mb-2 opacity-50" />
-                 <p className="text-sm">Seu histórico de leitura aparecerá aqui.</p>
-               </div>
-             ) : (
-               history.map((item, idx) => {
-                 // Check for notes in this chapter
-                 const chapterNotes = (Object.values(notes) as Note[]).filter(n => n.reference.startsWith(item.bookName + ' ' + item.chapter + ':'));
-                 const hasNote = chapterNotes.length > 0;
-                 const notePreview = hasNote ? chapterNotes[0].text : '';
-
-                 return (
-                    <button
-                        key={`${item.bookId}-${item.chapter}-${idx}`}
-                        onClick={() => handleHistoryClick(item)}
-                        className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between group transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
-                    >
-                    <div className="flex items-start gap-3 w-full overflow-hidden">
-                        <div className={`p-2 mt-1 rounded-full shrink-0 ${hasNote ? 'bg-yellow-50 text-yellow-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-500'}`}>
-                            {hasNote ? <Icons.FileText size={18} /> : <Icons.Book size={18} />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="flex justify-between items-baseline">
-                                <span className="font-semibold text-gray-800 dark:text-gray-200">
-                                    {item.bookName} {item.chapter}
-                                </span>
-                                <span className="text-xs text-gray-400 shrink-0 ml-2">
-                                    {formatTime(item.timestamp)}
-                                </span>
-                            </div>
-                            
-                            {hasNote ? (
-                                <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-gray-400 italic truncate">
-                                    <span className="font-bold text-yellow-600 not-italic">Nota:</span>
-                                    {notePreview}
-                                </div>
-                            ) : item.previewText ? (
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate font-serif opacity-80">
-                                    "{item.previewText}"
-                                </p>
-                            ) : null}
-                        </div>
-                    </div>
-                    </button>
-                 );
-               })
-             )}
-           </div>
-        )}
-
-        {activeTab === 'books' && (
-          <>
-            {selectedBook ? (
-              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                <h2 className="text-xl font-bold mb-4 text-center">{selectedBook.name}</h2>
-                <div className="grid grid-cols-5 gap-3">
-                  {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((chapter) => (
-                    <button
-                      key={chapter}
-                      onClick={() => handleChapterClick(chapter)}
-                      className={`p-3 rounded-lg text-center font-medium transition-colors ${
-                        selectedBook.id === currentBook.id && chapter === currentChapter
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-700'
-                      }`}
-                    >
-                      {chapter}
-                    </button>
-                  ))}
+        <div className="absolute inset-0 overflow-y-auto p-4 pr-8 scroll-smooth" id="books-scroll-container">
+            {activeTab === 'history' && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                {history.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                    <Icons.Clock size={40} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Seu histórico de leitura aparecerá aqui.</p>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-                {filteredOld.length > 0 && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Antigo Testamento</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
-                      {filteredOld.map((book) => (
-                        <button
-                          key={book.id}
-                          onClick={() => handleBookClick(book)}
-                          className="text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium flex justify-between items-center group"
-                        >
-                          {book.name}
-                          <Icons.ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500" />
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                )}
+                ) : (
+                history.map((item, idx) => {
+                    const chapterNotes = (Object.values(notes) as Note[]).filter(n => n.reference.startsWith(item.bookName + ' ' + item.chapter + ':'));
+                    const hasNote = chapterNotes.length > 0;
+                    const notePreview = hasNote ? chapterNotes[0].text : '';
 
-                {filteredNew.length > 0 && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Novo Testamento</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-1 gap-2">
-                      {filteredNew.map((book) => (
+                    return (
                         <button
-                          key={book.id}
-                          onClick={() => handleBookClick(book)}
-                          className="text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium flex justify-between items-center group"
+                            key={`${item.bookId}-${item.chapter}-${idx}`}
+                            onClick={() => handleHistoryClick(item)}
+                            className="w-full text-left p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between group transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
                         >
-                          {book.name}
-                          <Icons.ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500" />
+                        <div className="flex items-start gap-3 w-full overflow-hidden">
+                            <div className={`p-2 mt-1 rounded-full shrink-0 ${hasNote ? 'bg-yellow-50 text-yellow-600' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-500'}`}>
+                                {hasNote ? <Icons.FileText size={18} /> : <Icons.Book size={18} />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex justify-between items-baseline">
+                                    <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                        {item.bookName} {item.chapter}
+                                    </span>
+                                    <span className="text-xs text-gray-400 shrink-0 ml-2">
+                                        {formatTime(item.timestamp)}
+                                    </span>
+                                </div>
+                                
+                                {hasNote ? (
+                                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-gray-400 italic truncate">
+                                        <span className="font-bold text-yellow-600 not-italic">Nota:</span>
+                                        {notePreview}
+                                    </div>
+                                ) : item.previewText ? (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate font-serif opacity-80">
+                                        "{item.previewText}"
+                                    </p>
+                                ) : null}
+                            </div>
+                        </div>
                         </button>
-                      ))}
-                    </div>
-                  </section>
+                    );
+                })
                 )}
-                
-                {filteredNew.length === 0 && filteredOld.length === 0 && (
-                  <div className="text-center py-10 text-gray-500">
-                    Nenhum livro encontrado.
-                  </div>
-                )}
-              </div>
+            </div>
             )}
-          </>
+
+            {activeTab === 'books' && (
+            <>
+                {selectedBook ? (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                    <h2 className="text-xl font-bold mb-4 text-center">{selectedBook.name}</h2>
+                    <div className="grid grid-cols-5 gap-3">
+                    {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((chapter) => (
+                        <button
+                        key={chapter}
+                        onClick={() => handleChapterClick(chapter)}
+                        className={`p-3 rounded-lg text-center font-medium transition-colors ${
+                            selectedBook.id === currentBook.id && chapter === currentChapter
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-700'
+                        }`}
+                        >
+                        {chapter}
+                        </button>
+                    ))}
+                    </div>
+                </div>
+                ) : (
+                <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                    {filteredOld.length > 0 && (
+                    <section>
+                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Antigo Testamento</h3>
+                        <div className="grid grid-cols-1 gap-2">
+                        {filteredOld.map((book) => (
+                            <button
+                            key={book.id}
+                            id={`book-btn-${book.id}`}
+                            onClick={() => handleBookClick(book)}
+                            className="text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium flex justify-between items-center group"
+                            >
+                            {book.name}
+                            <Icons.ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500" />
+                            </button>
+                        ))}
+                        </div>
+                    </section>
+                    )}
+
+                    {filteredNew.length > 0 && (
+                    <section>
+                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Novo Testamento</h3>
+                        <div className="grid grid-cols-1 gap-2">
+                        {filteredNew.map((book) => (
+                            <button
+                            key={book.id}
+                            id={`book-btn-${book.id}`}
+                            onClick={() => handleBookClick(book)}
+                            className="text-left px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-medium flex justify-between items-center group"
+                            >
+                            {book.name}
+                            <Icons.ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500" />
+                            </button>
+                        ))}
+                        </div>
+                    </section>
+                    )}
+                    
+                    {filteredNew.length === 0 && filteredOld.length === 0 && (
+                    <div className="text-center py-10 text-gray-500">
+                        Nenhum livro encontrado.
+                    </div>
+                    )}
+                </div>
+                )}
+            </>
+            )}
+        </div>
+
+        {/* Alphabet Index Overlay */}
+        {activeTab === 'books' && !selectedBook && alphabet.length > 0 && (
+            <div className="absolute right-0 top-4 bottom-4 w-6 flex flex-col items-center justify-center z-20">
+                <div className="bg-gray-100/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-l-lg py-2 shadow-sm flex flex-col items-center gap-0.5 overflow-y-auto max-h-full no-scrollbar">
+                {alphabet.map((letter) => (
+                    <button
+                        key={letter}
+                        onClick={() => handleAlphaClick(letter)}
+                        className="text-[10px] font-bold text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 w-6 h-4 flex items-center justify-center transition-colors"
+                    >
+                        {letter}
+                    </button>
+                ))}
+                </div>
+            </div>
         )}
+
       </div>
     </div>
   );
