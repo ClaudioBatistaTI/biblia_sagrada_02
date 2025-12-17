@@ -1,8 +1,8 @@
-import { ChapterResponse, SearchResult } from '../types';
+import { ChapterResponse, SearchResult, SearchSortOption } from '../types';
 import { ALL_BOOKS } from '../constants';
+import { searchBibleReferences } from './geminiService';
 
 const BASE_URL = 'https://bible-api.com';
-const SEARCH_API_URL = 'https://bolls.life/find/AA/';
 
 export const fetchChapter = async (
   bookId: string,
@@ -12,6 +12,7 @@ export const fetchChapter = async (
   try {
     let queryBook = bookId;
     
+    // Handle specific Portuguese mapping for Almeida API request
     if (version === 'almeida' && bookId === 'Revelation') {
       queryBook = 'Apocalipse';
     }
@@ -33,47 +34,41 @@ export const fetchChapter = async (
   }
 };
 
-export const searchVerses = async (query: string): Promise<SearchResult[]> => {
+export const searchVerses = async (
+    query: string, 
+    offset: number = 0, 
+    sort: SearchSortOption = 'relevance'
+): Promise<SearchResult[]> => {
   try {
     if (!query || query.length < 2) return [];
 
-    // Bolls.life API: GET /find/{translation}/?search={query}&match_case=false
-    const url = `${SEARCH_API_URL}?search=${encodeURIComponent(query)}&match_case=false`;
+    // Use Gemini AI with Google Search Grounding with pagination and sort support
+    const aiResults = await searchBibleReferences(query, offset, sort);
     
-    const response = await fetch(url);
+    // Map AI results to internal structure and validate book names
+    return aiResults.map((v: any) => {
+        // Try to find exact book match in our constants
+        // The AI is instructed to return full Portuguese names
+        let bookName = v.book;
+        const knownBook = ALL_BOOKS.find(b => 
+            b.name.toLowerCase() === v.book.toLowerCase() || 
+            b.id.toLowerCase() === v.book.toLowerCase()
+        );
 
-    if (!response.ok) {
-       console.error("Search API returned error:", response.status);
-       return [];
-    }
-
-    const data = await response.json();
-    
-    if (!Array.isArray(data)) {
-        console.error("Unexpected search response format:", data);
-        return [];
-    }
-    
-    // Map API results to internal structure
-    return data.map((v: any) => {
-        // API book ID is 1-based (1 = Genesis)
-        // Ensure bookIndex is within bounds of ALL_BOOKS array
-        const bookIndex = (v.book || 0) - 1;
-        
-        let bookName = 'Desconhecido';
-        if (bookIndex >= 0 && bookIndex < ALL_BOOKS.length) {
-            bookName = ALL_BOOKS[bookIndex].name;
+        if (knownBook) {
+            bookName = knownBook.name;
         }
 
         return {
             book: bookName,
-            chapter: v.chapter,
-            verse: v.verse,
+            chapter: parseInt(v.chapter, 10),
+            verse: parseInt(v.verse, 10),
             text: v.text
         };
-    });
+    }).filter(item => item.book && !isNaN(item.chapter) && !isNaN(item.verse));
+
   } catch (error) {
-    console.error("Search API Error:", error);
-    return [];
+    console.error("Search Service Error:", error);
+    throw error;
   }
 };

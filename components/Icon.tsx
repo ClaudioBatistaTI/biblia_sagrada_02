@@ -1,6 +1,7 @@
 import React from 'react';
 import { 
   Book, 
+  BookOpen,
   ChevronLeft, 
   ChevronRight, 
   Share2, 
@@ -39,6 +40,7 @@ import {
 
 export const Icons = {
   Book,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Share2,

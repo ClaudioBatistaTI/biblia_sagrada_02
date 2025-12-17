@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type, Chat } from "@google/genai";
+import { SearchSortOption } from "../types";
 
 export const getVerseInsight = async (verseText: string, context: string): Promise<string> => {
   if (!process.env.API_KEY) {
@@ -57,4 +58,76 @@ export const createBibleChat = (): Chat | null => {
             `
         }
     });
+};
+
+export const searchBibleReferences = async (
+    query: string, 
+    offset: number = 0, 
+    sort: SearchSortOption = 'relevance'
+): Promise<any[]> => {
+  if (!process.env.API_KEY) {
+    throw new Error("API Key not configured");
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const model = 'gemini-2.5-flash';
+    const limit = 20; // Items per "page"
+
+    // Context instruction for sorting
+    const sortInstruction = sort === 'canonical' 
+        ? "ORDENAÇÃO: Os resultados OBRIGATORIAMENTE devem estar em ordem bíblica (Gênesis a Apocalipse)." 
+        : "ORDENAÇÃO: Priorize os versículos mais famosos e diretos sobre o tema primeiro (Relevância).";
+
+    // Context instruction for pagination (simulated via offset logic)
+    const paginationInstruction = offset > 0 
+        ? `Esta é uma continuação de busca (página ${Math.floor(offset / limit) + 1}). Ignorar os ${offset} versículos mais óbvios que provavelmente já foram mostrados e buscar versículos complementares ou menos citados sobre o mesmo tema.` 
+        : "";
+
+    const prompt = `
+      Realize uma busca semântica na Bíblia para: "${query}".
+      
+      Instruções Técnicas:
+      1. Retorne APENAS um JSON puro (Array de objetos).
+      2. Encontre exatamente ${limit} versículos.
+      3. ${sortInstruction}
+      4. ${paginationInstruction}
+      
+      Formato do Objeto JSON:
+      {
+        "book": "Nome do Livro em Português (ex: 1 João, Salmos)",
+        "chapter": 1,
+        "verse": 1,
+        "text": "Texto completo do versículo na versão Almeida"
+      }
+      
+      Certifique-se de que os nomes dos livros estejam acentuados corretamente em Português.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }] // Enable Google Search grounding
+      }
+    });
+
+    let jsonString = response.text || "[]";
+    
+    // Clean up potential markdown code blocks
+    jsonString = jsonString.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    jsonString = jsonString.replace(/^```\s*/, "").replace(/\s*```$/, "");
+
+    try {
+        const results = JSON.parse(jsonString);
+        return Array.isArray(results) ? results : [];
+    } catch (e) {
+        console.error("Failed to parse Gemini search JSON", e);
+        return [];
+    }
+
+  } catch (error) {
+    console.error("Gemini Search Error:", error);
+    throw error;
+  }
 };

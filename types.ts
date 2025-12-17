@@ -53,6 +53,7 @@ export interface HistoryItem {
 export type Theme = 'light' | 'dark' | 'sepia' | 'system';
 export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | 'orange' | null;
 export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
+export type SearchSortOption = 'relevance' | 'canonical';
 
 export interface DailyVerse {
   reference: string;
