@@ -1,3 +1,4 @@
+
 export interface Book {
   name: string;
   id: string; // English name for API
@@ -40,6 +41,8 @@ export interface SearchResult {
   chapter: number;
   verse: number;
   text: string;
+  sourceUrl?: string; // Link para fontes externas no modo IA
+  relevance?: number;
 }
 
 export interface HistoryItem {

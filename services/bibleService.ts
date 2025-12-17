@@ -1,8 +1,9 @@
+
 import { ChapterResponse, SearchResult, SearchSortOption } from '../types';
 import { ALL_BOOKS } from '../constants';
-import { searchBibleReferences } from './geminiService';
 
 const BASE_URL = 'https://bible-api.com';
+const SEARCH_API_URL = 'https://bolls.life/find/AA/'; // Versão Almeida Atualizada
 
 export const fetchChapter = async (
   bookId: string,
@@ -12,51 +13,57 @@ export const fetchChapter = async (
   try {
     let queryBook = bookId;
     
-    // Handle specific Portuguese mapping for Almeida API request
     if (version === 'almeida' && bookId === 'Revelation') {
       queryBook = 'Apocalipse';
     }
 
     const formattedBook = queryBook.trim().replace(/\s+/g, '+');
-    
-    // Construct URL: e.g., https://bible-api.com/Apocalipse+1?translation=almeida
     const url = `${BASE_URL}/${formattedBook}+${chapter}?translation=${version}`;
     
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Failed to fetch chapter: ${response.statusText}`);
+      throw new Error(`Erro ao buscar capítulo: ${response.statusText}`);
     }
     const data = await response.json();
     return data as ChapterResponse;
   } catch (error) {
-    console.error("Bible Fetch Error:", error);
+    console.error("Erro no Fetch da Bíblia:", error);
     throw error;
   }
 };
 
+/**
+ * Realiza uma busca textual literal (concordância) em toda a Bíblia.
+ * Retorna todas as ocorrências mapeadas para os livros internos.
+ */
 export const searchVerses = async (
-    query: string, 
-    offset: number = 0, 
-    sort: SearchSortOption = 'relevance'
+    query: string
 ): Promise<SearchResult[]> => {
   try {
-    if (!query || query.length < 2) return [];
+    if (!query || query.trim().length < 2) return [];
 
-    // Use Gemini AI with Google Search Grounding with pagination and sort support
-    const aiResults = await searchBibleReferences(query, offset, sort);
+    const url = `${SEARCH_API_URL}?search=${encodeURIComponent(query)}&match_case=false`;
     
-    // Map AI results to internal structure and validate book names
-    return aiResults.map((v: any) => {
-        // Try to find exact book match in our constants
-        // The AI is instructed to return full Portuguese names
-        let bookName = v.book;
-        const knownBook = ALL_BOOKS.find(b => 
-            b.name.toLowerCase() === v.book.toLowerCase() || 
-            b.id.toLowerCase() === v.book.toLowerCase()
-        );
+    const response = await fetch(url);
 
-        if (knownBook) {
-            bookName = knownBook.name;
+    if (!response.ok) {
+       throw new Error("Servidor de busca indisponível no momento.");
+    }
+
+    const data = await response.json();
+    
+    if (!data || !Array.isArray(data)) {
+        return [];
+    }
+    
+    return data.map((v: any) => {
+        const bookId = parseInt(v.book, 10);
+        // O mapeamento da API bolls (1-66) corresponde exatamente ao nosso array ALL_BOOKS
+        const bookIndex = isNaN(bookId) ? -1 : bookId - 1;
+        
+        let bookName = 'Desconhecido';
+        if (bookIndex >= 0 && bookIndex < ALL_BOOKS.length) {
+            bookName = ALL_BOOKS[bookIndex].name;
         }
 
         return {
@@ -65,10 +72,10 @@ export const searchVerses = async (
             verse: parseInt(v.verse, 10),
             text: v.text
         };
-    }).filter(item => item.book && !isNaN(item.chapter) && !isNaN(item.verse));
+    }).filter(item => item.book !== 'Desconhecido');
 
   } catch (error) {
-    console.error("Search Service Error:", error);
-    throw error;
+    console.error("Erro no Serviço de Busca:", error);
+    throw new Error("Erro de conexão com o banco de dados bíblico.");
   }
 };
