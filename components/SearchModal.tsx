@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import Icons from './Icon';
-import { searchBibleReferences } from '../services/geminiService';
+import { searchVerses } from '../services/bibleService';
 import { SearchResult } from '../types';
-import { OLD_TESTAMENT, NEW_TESTAMENT } from '../constants';
+import { OLD_TESTAMENT, NEW_TESTAMENT, ALL_BOOKS } from '../constants';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -26,6 +26,25 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
     return [...OLD_TESTAMENT, ...NEW_TESTAMENT];
   }, [testamentFilter]);
 
+  // Filter results client-side after fetching
+  const filteredResults = useMemo(() => {
+    return results.filter(result => {
+        // Filter by Book Name
+        if (bookFilter && result.book !== bookFilter) {
+            return false;
+        }
+
+        // Filter by Testament
+        if (testamentFilter !== 'ALL') {
+            const bookData = ALL_BOOKS.find(b => b.name === result.book);
+            if (bookData && bookData.testament !== testamentFilter) {
+                return false;
+            }
+        }
+        return true;
+    });
+  }, [results, bookFilter, testamentFilter]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -35,12 +54,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
     setResults([]);
 
     try {
-      const filters = {
-        testament: testamentFilter === 'ALL' ? undefined : testamentFilter,
-        book: bookFilter || undefined
-      };
-      
-      const data = await searchBibleReferences(query, filters);
+      const data = await searchVerses(query);
       setResults(data);
     } catch (error) {
       console.error("Search failed", error);
@@ -64,7 +78,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
                 type="text" 
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Busque por tema ou referência..."
+                placeholder="Busque por palavras (ex: amor, paz)..."
                 className="w-full bg-transparent border-none outline-none text-gray-800 dark:text-gray-100 text-lg placeholder-gray-400 font-medium"
                 autoFocus
               />
@@ -84,7 +98,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
               }}
               className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs py-1.5 px-3 rounded-full border-none outline-none cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
             >
-              <option value="ALL">Todo a Bíblia</option>
+              <option value="ALL">Toda a Bíblia</option>
               <option value="OT">Antigo Testamento</option>
               <option value="NT">Novo Testamento</option>
             </select>
@@ -107,15 +121,14 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
           {loading ? (
             <div className="flex flex-col items-center justify-center py-10 text-gray-400">
                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mb-3"></div>
-               <span className="text-sm animate-pulse">Consultando a sabedoria...</span>
+               <span className="text-sm animate-pulse">Buscando na concordância...</span>
             </div>
-          ) : results.length > 0 ? (
+          ) : filteredResults.length > 0 ? (
             <div className="space-y-2">
               <div className="px-2 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex justify-between items-center">
-                <span>Resultados Sugeridos</span>
-                <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">IA</span>
+                <span>{filteredResults.length} ocorrências encontradas</span>
               </div>
-              {results.map((res, idx) => (
+              {filteredResults.map((res, idx) => (
                 <button
                   key={idx}
                   onClick={() => {
@@ -139,16 +152,16 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onNavigate }
           ) : hasSearched ? (
             <div className="text-center py-10 text-gray-500 flex flex-col items-center">
               <Icons.Search size={32} className="mb-2 opacity-20" />
-              <p>Nenhum resultado encontrado.</p>
-              <p className="text-xs mt-1 opacity-70">Tente termos mais gerais.</p>
+              <p>Nenhuma ocorrência encontrada.</p>
+              <p className="text-xs mt-1 opacity-70">Verifique a ortografia ou tente outra palavra.</p>
             </div>
           ) : (
             <div className="text-center py-12 text-gray-400 text-sm flex flex-col items-center">
               <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-full mb-3">
-                 <Icons.Sparkles className="text-blue-400" size={24} />
+                 <Icons.Book className="text-blue-400" size={24} />
               </div>
-              <p className="font-medium text-gray-600 dark:text-gray-300">Busca Inteligente</p>
-              <p className="max-w-xs mx-auto mt-1 opacity-70">Digite um tema, sentimento (ex: "ansiedade") ou referência direta.</p>
+              <p className="font-medium text-gray-600 dark:text-gray-300">Concordância Bíblica</p>
+              <p className="max-w-xs mx-auto mt-1 opacity-70">Digite uma palavra para ver todos os versículos onde ela aparece.</p>
             </div>
           )}
         </div>
